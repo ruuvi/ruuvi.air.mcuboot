@@ -29,6 +29,7 @@
 #include "file_img_validate.h"
 #include "file_tlv_priv.h"
 #include "fw_img_hw_rev.h"
+#include "ruuvi_fw_update.h"
 #include "mcuboot_segger_rtt.h"
 #include "mcuboot_version.h"
 #include "app_version.h"
@@ -39,11 +40,6 @@
 #include "zephyr_commit.h"
 
 LOG_MODULE_DECLARE(mcuboot, CONFIG_MCUBOOT_LOG_LEVEL);
-
-#define RUUVI_FW_MCUBOOT0_FILE_NAME "signed_by_mcuboot_and_b0_mcuboot.bin"
-#define RUUVI_FW_MCUBOOT1_FILE_NAME "signed_by_mcuboot_and_b0_s1_image.bin"
-#define RUUVI_FW_LOADER_FILE_NAME   "ruuvi_air_fw_loader.signed.bin"
-#define RUUVI_FW_APP_FILE_NAME      "ruuvi_air_fw.signed.bin"
 
 #define MCUBOOT_HOOK_TMPBUF_SZ 256
 

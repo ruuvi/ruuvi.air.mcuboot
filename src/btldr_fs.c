@@ -7,6 +7,7 @@
 #include <zephyr/fs/fs.h>
 #include <zephyr/fs/littlefs.h>
 #include <zephyr/logging/log.h>
+#include "ruuvi_fw_update.h"
 
 LOG_MODULE_REGISTER(btldr_fs, LOG_LEVEL_INF);
 
@@ -24,7 +25,7 @@ static struct fs_mount_t btldr_fs_storage_mnt = {
     .type        = FS_LITTLEFS,
     .fs_data     = &storage,
     .storage_dev = (void*)FIXED_PARTITION_ID(littlefs_storage1),
-    .mnt_point   = "/lfs1",
+    .mnt_point   = RUUVI_FW_UPDATE_MOUNT_POINT,
 };
 
 static struct fs_mount_t* const g_mountpoint = &btldr_fs_storage_mnt;
