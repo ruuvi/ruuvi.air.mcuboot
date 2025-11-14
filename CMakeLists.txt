@@ -68,6 +68,8 @@ set_property(TARGET app_version_h PROPERTY APP_VERSION_CUSTOMIZATION
     "//#include;\\\"mcuboot_version_extra.h\\\";"
 )
 
+set(GENERATED_VERSION "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
+
 set(VH ${PROJECT_BINARY_DIR}/include/generated/mcuboot_version.h)
 set(MYVH ${PROJECT_BINARY_DIR}/include/generated/mcuboot_version.override.h)
 
@@ -130,9 +132,12 @@ if(CONFIG_MCUBOOT)
 	  src/file_img_validate.h
 	  src/file_tlv.c
 	  src/file_tlv.h
+	  src/fw_img_hw_rev.c
+	  src/fw_img_hw_rev.h
 	)
 
 target_include_directories(app PRIVATE
+    ../include
     ${ZEPHYR_BASE}/kernel/include
     ${ARCH_DIR}/${ARCH}/include
     )

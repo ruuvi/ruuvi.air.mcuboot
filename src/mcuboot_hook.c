@@ -28,6 +28,7 @@
 #include "btldr_fs.h"
 #include "file_img_validate.h"
 #include "file_tlv_priv.h"
+#include "fw_img_hw_rev.h"
 #include "mcuboot_segger_rtt.h"
 #include "mcuboot_version.h"
 #include "app_version.h"
@@ -82,6 +83,16 @@ static const struct image_version mcuboot_s0_s1_image_version = {
     .iv_build_num = CONFIG_MCUBOOT_MCUBOOT_S0_S1_VERSION_BUILD_NUMBER,
 };
 #endif
+
+const int g_cfg_hw_rev =
+#if defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_1)
+    1
+#elif defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_2)
+    2
+#else
+    0
+#endif
+    ;
 
 #if defined(MCUBOOT_DOWNGRADE_PREVENTION)
 /**
@@ -419,7 +430,8 @@ validate_file(
     const char* const          p_file_name,
     const uint32_t             dst_fa_addr,
     const uint32_t             dst_fa_size,
-    struct image_header* const p_img_hdr)
+    struct image_header* const p_img_hdr,
+    fw_image_hw_rev_t* const   p_hw_rev)
 {
     static uint8_t tmp_buf[MCUBOOT_HOOK_TMPBUF_SZ];
 
@@ -487,6 +499,24 @@ validate_file(
         return false;
     }
 
+    fw_image_hw_rev_t hw_rev = { 0 };
+    if (!fw_img_hw_rev_find_in_file(&file, &hw_rev))
+    {
+        LOG_WRN("Image in file %s: No Ruuvi HW revision TLVs found", p_file_name);
+    }
+    else
+    {
+        LOG_DBG(
+            "Image in file %s: Found Ruuvi HW revision TLVs: ID=%" PRIu32 ", name='%s'",
+            p_file_name,
+            hw_rev.hw_rev_num,
+            hw_rev.hw_rev_name);
+    }
+    if (NULL != p_hw_rev)
+    {
+        *p_hw_rev = hw_rev;
+    }
+
     fs_close(&file);
 
     return true;
@@ -545,7 +575,7 @@ fw_info_find_in_file(const char* const p_file_name, struct fw_info* const p_fw_i
 }
 
 static void
-print_image_info(const int fa_id)
+print_image_info(const int fa_id, fw_image_hw_rev_t* const p_hw_rev)
 {
     uint32_t fa_addr = 0;
     uint32_t fa_size = 0;
@@ -568,15 +598,26 @@ print_image_info(const int fa_id)
         LOG_ERR("Failed to load image header for flash area %d (%s)", fa_id, get_image_slot_name(fa_id));
         return;
     }
+    fw_image_hw_rev_t hw_rev = { 0 };
+    if (!fw_img_hw_rev_find_in_flash_area(fa_id, &hw_rev))
+    {
+        LOG_WRN("Image in flash area %d (%s): No Ruuvi HW revision TLVs found", fa_id, get_image_slot_name(fa_id));
+    }
     LOG_INF(
-        "### Flash area %d (%s): Image version: v%u.%u.%u+%u, FwInfoVer: %u",
+        "### Flash area %d (%s): Image version: v%u.%u.%u+%u, FwInfoVer: %u, HwRev: ID=%" PRIu32 ", name='%s' ###",
         fa_id,
         get_image_slot_name(fa_id),
         img_hdr.ih_ver.iv_major,
         img_hdr.ih_ver.iv_minor,
         img_hdr.ih_ver.iv_revision,
         img_hdr.ih_ver.iv_build_num,
-        p_fw_info->version);
+        p_fw_info->version,
+        hw_rev.hw_rev_num,
+        hw_rev.hw_rev_name);
+    if (NULL != p_hw_rev)
+    {
+        *p_hw_rev = hw_rev;
+    }
 }
 
 static bool
@@ -648,7 +689,11 @@ validate_b0_signature(const char* const p_file_name, const uint32_t dst_fa_addr,
 }
 
 static bool
-check_file_and_update(const char* const p_file_name, const int dst_fa_id, const bool flag_validate_b0_signature)
+check_file_and_update(
+    const char* const              p_file_name,
+    const int                      dst_fa_id,
+    const fw_image_hw_rev_t* const p_hw_rev,
+    const bool                     flag_validate_b0_signature)
 {
     if (!btldr_fs_is_file_exist(p_file_name))
     {
@@ -664,6 +709,7 @@ check_file_and_update(const char* const p_file_name, const int dst_fa_id, const 
     }
 
     struct image_header file_img_hdr = { 0 };
+    fw_image_hw_rev_t   hw_rev       = { 0 };
     if (flag_validate_b0_signature)
     {
         LOG_INF("Validate B0 signature for file: %s", p_file_name);
@@ -674,14 +720,14 @@ check_file_and_update(const char* const p_file_name, const int dst_fa_id, const 
             return false;
         }
         LOG_INF("B0 signature in file %s validated successfully", p_file_name);
-        if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, &file_img_hdr))
+        if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, &file_img_hdr, &hw_rev))
         {
             LOG_WRN("MCUboot signature for file %s is not valid, but B0 signature is valid", p_file_name);
         }
     }
     else
     {
-        if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, &file_img_hdr))
+        if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, &file_img_hdr, &hw_rev))
         {
             LOG_ERR("File %s contains invalid image", p_file_name);
             btldr_fs_unlink_file(p_file_name);
@@ -704,6 +750,27 @@ check_file_and_update(const char* const p_file_name, const int dst_fa_id, const 
         btldr_fs_unlink_file(p_file_name);
         return false;
     }
+    LOG_INF(
+        "Image in file %s: Image version: v%u.%u.%u+%u, FwInfoVer: %u, HwRev: ID=%" PRIu32 ", name='%s'",
+        p_file_name,
+        file_img_hdr.ih_ver.iv_major,
+        file_img_hdr.ih_ver.iv_minor,
+        file_img_hdr.ih_ver.iv_revision,
+        file_img_hdr.ih_ver.iv_build_num,
+        file_fw_info.version,
+        hw_rev.hw_rev_num,
+        hw_rev.hw_rev_name);
+
+    if ('\0' != p_hw_rev->hw_rev_name[0])
+    {
+        if (0 != strcmp(p_hw_rev->hw_rev_name, hw_rev.hw_rev_name))
+        {
+            LOG_ERR("HW revision name mismatch: expected '%s', got '%s'", p_hw_rev->hw_rev_name, hw_rev.hw_rev_name);
+            btldr_fs_unlink_file(p_file_name);
+            return false;
+        }
+    }
+
     LOG_INF("Current image FwInfoVersion: %u", p_dst_fw_info->version);
     LOG_INF("New image FwInfoVersion: %u", file_fw_info.version);
     if (p_dst_fw_info->version > file_fw_info.version)
@@ -785,7 +852,7 @@ check_file_and_update(const char* const p_file_name, const int dst_fa_id, const 
 }
 
 static bool
-check_update_for_mcuboot(const char* const p_file_name, const int dst_fa_id)
+check_update_for_mcuboot(const char* const p_file_name, const int dst_fa_id, const fw_image_hw_rev_t* const p_hw_rev)
 {
     if (!btldr_fs_is_file_exist(p_file_name))
     {
@@ -812,23 +879,59 @@ check_update_for_mcuboot(const char* const p_file_name, const int dst_fa_id)
     }
     LOG_INF("B0 signature for file %s validated successfully", p_file_name);
 
-    if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, NULL))
+    struct image_header file_img_hdr = { 0 };
+    fw_image_hw_rev_t   hw_rev       = { 0 };
+    if (!validate_file(p_file_name, dst_fa_addr, dst_fa_size, &file_img_hdr, &hw_rev))
     {
         LOG_WRN("MCUboot signature for file %s is not valid, but B0 signature is valid", p_file_name);
+    }
+
+    struct fw_info file_fw_info = { 0 };
+    if (!fw_info_find_in_file(p_file_name, &file_fw_info))
+    {
+        LOG_ERR("Failed to find fw_info in file %s", p_file_name);
+        btldr_fs_unlink_file(p_file_name);
+        return false;
+    }
+
+    LOG_INF(
+        "Image in file %s: Image version: v%u.%u.%u+%u, FwInfoVer: %u, HwRev: ID=%" PRIu32 ", name='%s'",
+        p_file_name,
+        file_img_hdr.ih_ver.iv_major,
+        file_img_hdr.ih_ver.iv_minor,
+        file_img_hdr.ih_ver.iv_revision,
+        file_img_hdr.ih_ver.iv_build_num,
+        file_fw_info.version,
+        hw_rev.hw_rev_num,
+        hw_rev.hw_rev_name);
+
+    if ('\0' != p_hw_rev->hw_rev_name[0])
+    {
+        if (0 != strcmp(p_hw_rev->hw_rev_name, hw_rev.hw_rev_name))
+        {
+            LOG_ERR("HW revision name mismatch: expected '%s', got '%s'", p_hw_rev->hw_rev_name, hw_rev.hw_rev_name);
+            btldr_fs_unlink_file(p_file_name);
+            return false;
+        }
     }
 
     return true;
 }
 
 static bool
-check_updates_on_fs(const uint8_t mcuboot_active_slot)
+check_updates_on_fs(const uint8_t mcuboot_active_slot, const fw_image_hw_rev_t* const p_hw_rev)
 {
     bool flag_updates_found = false;
 
     if (0 == mcuboot_active_slot)
     {
-        flag_updates_found |= check_file_and_update(RUUVI_FW_MCUBOOT1_FILE_NAME, PM_ID(s1), true);
-        if (check_update_for_mcuboot(RUUVI_FW_MCUBOOT0_FILE_NAME, PM_ID(s0)))
+        const bool flag_validate_b0_signature = true;
+        flag_updates_found |= check_file_and_update(
+            RUUVI_FW_MCUBOOT1_FILE_NAME,
+            PM_ID(s1),
+            p_hw_rev,
+            flag_validate_b0_signature);
+        if (check_update_for_mcuboot(RUUVI_FW_MCUBOOT0_FILE_NAME, PM_ID(s0), p_hw_rev))
         {
             LOG_INF("Found file %s - need to reboot to update it from secondary MCUboot", RUUVI_FW_MCUBOOT0_FILE_NAME);
             (void)img_invalidate(PM_ID(s0));
@@ -837,16 +940,30 @@ check_updates_on_fs(const uint8_t mcuboot_active_slot)
     }
     else
     {
-        flag_updates_found |= check_file_and_update(RUUVI_FW_MCUBOOT0_FILE_NAME, PM_ID(s0), true);
+        const bool flag_validate_b0_signature = true;
+        flag_updates_found |= check_file_and_update(
+            RUUVI_FW_MCUBOOT0_FILE_NAME,
+            PM_ID(s0),
+            p_hw_rev,
+            flag_validate_b0_signature);
 
-        if (check_update_for_mcuboot(RUUVI_FW_MCUBOOT1_FILE_NAME, PM_ID(s1)))
+        if (check_update_for_mcuboot(RUUVI_FW_MCUBOOT1_FILE_NAME, PM_ID(s1), p_hw_rev))
         {
             LOG_INF("Found file %s - need to reboot to update it from primary MCUboot", RUUVI_FW_MCUBOOT1_FILE_NAME);
             return true;
         }
     }
-    flag_updates_found |= check_file_and_update(RUUVI_FW_LOADER_FILE_NAME, PM_ID(mcuboot_secondary), false);
-    flag_updates_found |= check_file_and_update(RUUVI_FW_APP_FILE_NAME, PM_ID(mcuboot_primary), false);
+    const bool flag_validate_b0_signature = false;
+    flag_updates_found |= check_file_and_update(
+        RUUVI_FW_LOADER_FILE_NAME,
+        PM_ID(mcuboot_secondary),
+        p_hw_rev,
+        flag_validate_b0_signature);
+    flag_updates_found |= check_file_and_update(
+        RUUVI_FW_APP_FILE_NAME,
+        PM_ID(mcuboot_primary),
+        p_hw_rev,
+        flag_validate_b0_signature);
     return flag_updates_found;
 }
 
@@ -904,14 +1021,84 @@ on_startup(void)
     LOG_INF("### MCUboot: primary area id=%d", FLASH_AREA_IMAGE_PRIMARY(0));
     LOG_INF("### MCUboot: secondary area id=%d", FLASH_AREA_IMAGE_SECONDARY(0));
 
-    print_image_info(PM_ID(s0));
-    print_image_info(PM_ID(s1));
-    print_image_info(PM_ID(mcuboot_primary));
-    print_image_info(PM_ID(mcuboot_secondary));
+    fw_image_hw_rev_t hw_rev = { 0 };
+    print_image_info(PM_ID(s0), (0 == mcuboot_active_slot) ? &hw_rev : NULL);
+    print_image_info(PM_ID(s1), (0 != mcuboot_active_slot) ? &hw_rev : NULL);
+    print_image_info(PM_ID(mcuboot_primary), NULL);
+    print_image_info(PM_ID(mcuboot_secondary), NULL);
+
+    if (hw_rev.hw_rev_num != g_cfg_hw_rev)
+    {
+        LOG_ERR("Hardware revision mismatch: fw image hw_rev_id: %d, Kconfig: %d", hw_rev.hw_rev_num, g_cfg_hw_rev);
+    }
+    __ASSERT(
+        hw_rev.hw_rev_num == g_cfg_hw_rev,
+        "Hardware revision mismatch: fw image hw_rev_id: %d, Kconfig: %d",
+        hw_rev.hw_rev_id,
+        g_cfg_hw_rev);
+
+    struct image_header img_hdr = { 0 };
+    if (!load_image_header((0 == mcuboot_active_slot) ? PM_ID(s0) : PM_ID(s1), &img_hdr))
+    {
+        LOG_ERR("Failed to load image header for flash area %d", (0 == mcuboot_active_slot) ? PM_ID(s0) : PM_ID(s1));
+        return;
+    }
+    if ((img_hdr.ih_ver.iv_major != mcuboot_s0_s1_image_version.iv_major)
+        || (img_hdr.ih_ver.iv_minor != mcuboot_s0_s1_image_version.iv_minor)
+        || (img_hdr.ih_ver.iv_revision != mcuboot_s0_s1_image_version.iv_revision)
+        || (img_hdr.ih_ver.iv_build_num != mcuboot_s0_s1_image_version.iv_build_num))
+    {
+        LOG_ERR(
+            "MCUboot version mismatch: image version: v%u.%u.%u+%u, expected version: v%u.%u.%u+%u",
+            img_hdr.ih_ver.iv_major,
+            img_hdr.ih_ver.iv_minor,
+            img_hdr.ih_ver.iv_revision,
+            img_hdr.ih_ver.iv_build_num,
+            mcuboot_s0_s1_image_version.iv_major,
+            mcuboot_s0_s1_image_version.iv_minor,
+            mcuboot_s0_s1_image_version.iv_revision,
+            mcuboot_s0_s1_image_version.iv_build_num);
+    }
+    __ASSERT(
+        (img_hdr.ih_ver.iv_major == mcuboot_s0_s1_image_version.iv_major)
+            && (img_hdr.ih_ver.iv_minor == mcuboot_s0_s1_image_version.iv_minor)
+            && (img_hdr.ih_ver.iv_revision == mcuboot_s0_s1_image_version.iv_revision)
+            && (img_hdr.ih_ver.iv_build_num == mcuboot_s0_s1_image_version.iv_build_num),
+        "MCUboot version mismatch: image version: v%u.%u.%u+%u, expected version: v%u.%u.%u+%u",
+        img_hdr.ih_ver.iv_major,
+        img_hdr.ih_ver.iv_minor,
+        img_hdr.ih_ver.iv_revision,
+        img_hdr.ih_ver.iv_build_num,
+        mcuboot_s0_s1_image_version.iv_major,
+        mcuboot_s0_s1_image_version.iv_minor,
+        mcuboot_s0_s1_image_version.iv_revision,
+        mcuboot_s0_s1_image_version.iv_build_num);
+
+    char expected_version_str[32];
+    snprintf(
+        expected_version_str,
+        sizeof(expected_version_str),
+        "%u.%u.%u+%" PRIu32,
+        mcuboot_s0_s1_image_version.iv_major,
+        mcuboot_s0_s1_image_version.iv_minor,
+        mcuboot_s0_s1_image_version.iv_revision,
+        mcuboot_s0_s1_image_version.iv_build_num);
+    if (0 != strcmp(expected_version_str, MCUBOOT_VERSION_TWEAK_STRING))
+    {
+        LOG_ERR(
+            "Image version mismatch: fw image: %s, App Version: %s",
+            expected_version_str,
+            MCUBOOT_VERSION_TWEAK_STRING);
+    }
+    __ASSERT(
+        0 == strcmp(expected_version_str, MCUBOOT_VERSION_TWEAK_STRING),
+        "Image version mismatch: fw image: %s, App Version: %s",
+        expected_version_str,
+        MCUBOOT_VERSION_TWEAK_STRING);
 
     if (btldr_fs_mount())
     {
-        if (check_updates_on_fs(mcuboot_active_slot))
+        if (check_updates_on_fs(mcuboot_active_slot, &hw_rev))
         {
             reboot_cold();
         }
