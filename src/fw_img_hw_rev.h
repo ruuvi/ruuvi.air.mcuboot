@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <zephyr/fs/fs.h>
 #include "ruuvi_image_tlv.h"
+#include "ruuvi_fa_id.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +25,7 @@ typedef struct fw_image_hw_rev_t
 } fw_image_hw_rev_t;
 
 bool
-fw_img_hw_rev_find_in_flash_area(const int fa_id, fw_image_hw_rev_t* const p_hw_rev);
+fw_img_hw_rev_find_in_flash_area(const fa_id_t fa_id, fw_image_hw_rev_t* const p_hw_rev);
 
 bool
 fw_img_hw_rev_find_in_file(struct fs_file_t* const p_file, fw_image_hw_rev_t* const p_hw_rev);

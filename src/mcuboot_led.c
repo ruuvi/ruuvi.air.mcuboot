@@ -31,7 +31,7 @@ mcuboot_led_init_gpio(const struct gpio_dt_spec* p_led_spec)
         return;
     }
 
-    const int rc = gpio_pin_configure_dt(p_led_spec, GPIO_OUTPUT_INACTIVE);
+    const int32_t rc = gpio_pin_configure_dt(p_led_spec, GPIO_OUTPUT_INACTIVE);
     if (0 != rc)
     {
         LOG_ERR("Failed to configure LED %s:%d, rc %d", p_led_spec->port->name, p_led_spec->pin, rc);
@@ -56,7 +56,7 @@ mcuboot_led_deinit_gpio(const struct gpio_dt_spec* p_led_spec)
 
     gpio_pin_set_dt(p_led_spec, 0);
 
-    const int rc = gpio_pin_configure_dt(p_led_spec, GPIO_DISCONNECTED);
+    const int32_t rc = gpio_pin_configure_dt(p_led_spec, GPIO_DISCONNECTED);
     if (0 != rc)
     {
         LOG_ERR("Failed to configure LED %s:%d, rc %d", p_led_spec->port->name, p_led_spec->pin, rc);

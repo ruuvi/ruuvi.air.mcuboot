@@ -17,7 +17,7 @@ LOG_MODULE_DECLARE(mcuboot, CONFIG_MCUBOOT_LOG_LEVEL);
 _Static_assert(CONFIG_RUUVI_AIR_GPIO_EXT_FLASH_POWER_ON_PRIORITY > CONFIG_GPIO_INIT_PRIORITY);
 _Static_assert(CONFIG_RUUVI_AIR_GPIO_EXT_FLASH_POWER_ON_PRIORITY < CONFIG_NORDIC_QSPI_NOR_INIT_PRIORITY);
 
-static int
+static int // NOSONAR: Zephyr init functions must return int
 mcuboot_early_init_post_kernel(void)
 {
     printk("\r\n*** %s ***\r\n", CONFIG_NCS_APPLICATION_BOOT_BANNER_STRING);
@@ -32,7 +32,7 @@ mcuboot_early_init_post_kernel(void)
 
 SYS_INIT(mcuboot_early_init_post_kernel, POST_KERNEL, CONFIG_RUUVI_AIR_GPIO_EXT_FLASH_POWER_ON_PRIORITY);
 
-static int
+static int // NOSONAR: Zephyr init functions must return int
 mcuboot_early_init_application(void)
 {
     return 0;

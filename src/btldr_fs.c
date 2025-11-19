@@ -8,6 +8,8 @@
 #include <zephyr/fs/littlefs.h>
 #include <zephyr/logging/log.h>
 #include "ruuvi_fw_update.h"
+#include "ruuvi_fa_id.h"
+#include "zephyr_api.h"
 
 LOG_MODULE_REGISTER(btldr_fs, LOG_LEVEL_INF);
 
@@ -52,12 +54,12 @@ btldr_fs_unlock(void)
 bool
 btldr_fs_flash_erase(void)
 {
-    const int                btldr_fs_fa_id = PM_ID(littlefs_storage1);
+    const fa_id_t            btldr_fs_fa_id = PM_ID(littlefs_storage1);
     const struct flash_area* pfa            = NULL;
 
     LOG_INF("Erase %s (storage_dev %p)", g_mountpoint->mnt_point, g_mountpoint->storage_dev);
 
-    int rc = flash_area_open(btldr_fs_fa_id, &pfa);
+    zephyr_api_ret_t rc = flash_area_open(btldr_fs_fa_id, &pfa);
     if (rc < 0)
     {
         LOG_ERR("FAIL: unable to find flash area %u: %d", btldr_fs_fa_id, rc);
@@ -88,7 +90,7 @@ btldr_fs_flash_erase(void)
 bool
 btldr_fs_mount(void)
 {
-    int rc = fs_mount(g_mountpoint);
+    zephyr_api_ret_t rc = fs_mount(g_mountpoint);
     if (0 != rc)
     {
         LOG_ERR(
@@ -122,7 +124,7 @@ btldr_fs_mount(void)
 void
 btldr_fs_unmount(void)
 {
-    const int rc = fs_unmount(g_mountpoint);
+    const zephyr_api_ret_t rc = fs_unmount(g_mountpoint);
     if (0 != rc)
     {
         LOG_ERR("FAIL: unmount %s: rc=%d", g_mountpoint->mnt_point, rc);
@@ -138,8 +140,8 @@ btldr_fs_is_file_exist(const char* const p_file_name)
 {
     const btldr_fs_abs_path_t* const p_abs_path = btldr_fs_lock_and_get_abs_path(p_file_name);
 
-    bool      res = true;
-    const int rc  = fs_stat(p_abs_path->buf, &g_btldr_fs_dir_entry);
+    bool                   res = true;
+    const zephyr_api_ret_t rc  = fs_stat(p_abs_path->buf, &g_btldr_fs_dir_entry);
     if (-ENOENT == rc)
     {
         res = false;
@@ -154,6 +156,10 @@ btldr_fs_is_file_exist(const char* const p_file_name)
         LOG_ERR("File %s is not a file", p_file_name);
         res = false;
     }
+    else
+    {
+        // MISRA: "if ... else if" constructs should end with "else" clauses
+    }
     btldr_fs_unlock();
     return res;
 }
@@ -165,7 +171,7 @@ btldr_fs_open_file(const char* const p_file_name)
 
     struct fs_file_t file = { 0 };
     fs_file_t_init(&file);
-    const int rc = fs_open(&file, p_abs_path->buf, FS_O_READ);
+    const zephyr_api_ret_t rc = fs_open(&file, p_abs_path->buf, FS_O_READ);
     if (rc < 0)
     {
         LOG_ERR("Failed to open file %s, rc=%d", p_file_name, rc);
@@ -187,8 +193,8 @@ btldr_fs_unlink_file(const char* const p_file_name)
     const btldr_fs_abs_path_t* const p_abs_path = btldr_fs_lock_and_get_abs_path(p_file_name);
 
     LOG_INF("Remove file: %s", p_file_name);
-    bool      res = true;
-    const int rc  = fs_unlink(p_abs_path->buf);
+    bool                   res = true;
+    const zephyr_api_ret_t rc  = fs_unlink(p_abs_path->buf);
     if (rc < 0)
     {
         LOG_ERR("Failed to unlink file %s, rc=%d", p_file_name, rc);
@@ -201,8 +207,8 @@ btldr_fs_unlink_file(const char* const p_file_name)
 off_t
 btldr_fs_get_file_size(struct fs_file_t* const p_file)
 {
-    const off_t cur_offset = fs_tell(p_file);
-    int         rc         = fs_seek(p_file, 0, FS_SEEK_END);
+    const off_t      cur_offset = fs_tell(p_file);
+    zephyr_api_ret_t rc         = fs_seek(p_file, 0, FS_SEEK_END);
     if (0 != rc)
     {
         LOG_ERR("Failed to get file size, rc=%d", rc);
