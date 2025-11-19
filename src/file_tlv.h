@@ -9,12 +9,13 @@
 #include <stdbool.h>
 #include <bootutil/image.h>
 #include <zephyr/fs/fs.h>
+#include "zephyr_api.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct file_tlv_iter
+typedef struct file_tlv_iter_t
 {
     const struct image_header* hdr;
     struct fs_file_t*          p_file;
@@ -23,7 +24,7 @@ struct file_tlv_iter
     uint32_t                   prot_end;
     uint32_t                   tlv_off;
     uint32_t                   tlv_end;
-};
+} file_tlv_iter_t;
 
 /*
  * Initialize a TLV iterator.
@@ -37,13 +38,13 @@ struct file_tlv_iter
  * @returns 0 if the TLV iterator was successfully started
  *          -1 on errors
  */
-int
+zephyr_api_ret_t
 file_tlv_iter_begin(
-    struct file_tlv_iter*      it,
-    const struct image_header* hdr,
-    struct fs_file_t* const    p_file,
-    uint16_t                   type,
-    bool                       prot);
+    file_tlv_iter_t* const           it,
+    const struct image_header* const hdr,
+    struct fs_file_t* const          p_file,
+    const uint16_t                   type,
+    const bool                       prot);
 
 /*
  * Find next TLV
@@ -57,8 +58,8 @@ file_tlv_iter_begin(
  *          1 if no more TLVs with matching type are available
  *          -1 on errors
  */
-int
-file_tlv_iter_next(struct file_tlv_iter* it, uint32_t* off, uint16_t* len, uint16_t* type);
+zephyr_api_ret_t
+file_tlv_iter_next(file_tlv_iter_t* const it, uint32_t* const off, uint16_t* const len, uint16_t* const type);
 
 /*
  * Return if a TLV entry is in the protected area.
@@ -70,8 +71,8 @@ file_tlv_iter_next(struct file_tlv_iter* it, uint32_t* off, uint16_t* len, uint1
  *         1 if this TLV iterator entry is in the protected region
  *         -1 if the iterator is invalid.
  */
-int
-file_tlv_iter_is_prot(struct file_tlv_iter* it, uint32_t off);
+zephyr_api_ret_t
+file_tlv_iter_is_prot(const file_tlv_iter_t* const it, const uint32_t off);
 
 #ifdef __cplusplus
 }

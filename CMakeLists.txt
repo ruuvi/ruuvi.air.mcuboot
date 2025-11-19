@@ -113,6 +113,10 @@ if(CONFIG_MCUBOOT)
 	  src/mcuboot_err_handler.c
 	  src/mcuboot_ext_flash_power.c
 	  src/mcuboot_ext_flash_power.h
+	  src/mcuboot_fa_utils.c
+	  src/mcuboot_fa_utils.h
+	  src/mcuboot_fw_update.c
+	  src/mcuboot_fw_update.h
 	  src/mcuboot_gpio_input.c
 	  src/mcuboot_gpio_input.h
 	  src/mcuboot_img_op.c

@@ -7,6 +7,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 #include "mcuboot_gpio_input.h"
+#include "zephyr_api.h"
 
 LOG_MODULE_DECLARE(mcuboot, CONFIG_MCUBOOT_LOG_LEVEL);
 
@@ -34,7 +35,7 @@ mcuboot_button_deinit(void)
         return;
     }
 
-    const int rc = gpio_pin_configure_dt(&button0, GPIO_DISCONNECTED);
+    const zephyr_api_ret_t rc = gpio_pin_configure_dt(&button0, GPIO_DISCONNECTED);
     if (0 != rc)
     {
         LOG_ERR("Failed to configure BUTTON0 (rc: %d)", rc);
@@ -45,7 +46,7 @@ mcuboot_button_deinit(void)
 bool
 mcuboot_button_get(void)
 {
-    int rc = gpio_pin_get_dt(&button0);
+    zephyr_api_ret_t rc = gpio_pin_get_dt(&button0);
     if (rc < 0)
     {
         LOG_ERR("Failed to get BUTTON0 (rc: %d)", rc);

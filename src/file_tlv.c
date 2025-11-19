@@ -26,6 +26,7 @@
 #include "bootutil/bootutil.h"
 #include "bootutil/image.h"
 #include "file_tlv_priv.h"
+#include "zephyr_api.h"
 
 /*
  * Initialize a TLV iterator.
@@ -39,46 +40,48 @@
  * @returns 0 if the TLV iterator was successfully started
  *          -1 on errors
  */
-int
+zephyr_api_ret_t
 file_tlv_iter_begin(
-    struct file_tlv_iter*      it,
-    const struct image_header* hdr,
-    struct fs_file_t* const    p_file,
-    uint16_t                   type,
-    bool                       prot)
+    file_tlv_iter_t* const           it,
+    const struct image_header* const hdr,
+    struct fs_file_t* const          p_file,
+    const uint16_t                   type,
+    const bool                       prot)
 {
-    uint32_t              off_;
-    struct image_tlv_info info;
-
-    if (it == NULL || hdr == NULL || p_file == NULL)
+    if ((NULL == it) || (NULL == hdr) || (NULL == p_file))
     {
         return -1;
     }
 
-    off_ = BOOT_TLV_OFF(hdr);
-    if (LOAD_IMAGE_DATA(hdr, p_file, off_, (void*)&info, sizeof(info)))
+    uint32_t              offset = BOOT_TLV_OFF(hdr);
+    struct image_tlv_info info   = { 0 };
+    if (LOAD_IMAGE_DATA(hdr, p_file, offset, (void*)&info, sizeof(info)))
     {
         return -1;
     }
 
-    if (info.it_magic == IMAGE_TLV_PROT_INFO_MAGIC)
+    if (IMAGE_TLV_PROT_INFO_MAGIC == info.it_magic)
     {
         if (hdr->ih_protect_tlv_size != info.it_tlv_tot)
         {
             return -1;
         }
 
-        if (LOAD_IMAGE_DATA(hdr, p_file, off_ + info.it_tlv_tot, (void*)&info, sizeof(info)))
+        if (LOAD_IMAGE_DATA(hdr, p_file, offset + info.it_tlv_tot, (void*)&info, sizeof(info)))
         {
             return -1;
         }
     }
-    else if (hdr->ih_protect_tlv_size != 0)
+    else if (0 != hdr->ih_protect_tlv_size)
     {
         return -1;
     }
+    else
+    {
+        // MISRA: "if ... else if" constructs should end with "else" clauses
+    }
 
-    if (info.it_magic != IMAGE_TLV_INFO_MAGIC)
+    if (IMAGE_TLV_INFO_MAGIC != info.it_magic)
     {
         return -1;
     }
@@ -87,10 +90,10 @@ file_tlv_iter_begin(
     it->p_file   = p_file;
     it->type     = type;
     it->prot     = prot;
-    it->prot_end = off_ + it->hdr->ih_protect_tlv_size;
-    it->tlv_end  = off_ + it->hdr->ih_protect_tlv_size + info.it_tlv_tot;
+    it->prot_end = offset + it->hdr->ih_protect_tlv_size;
+    it->tlv_end  = offset + it->hdr->ih_protect_tlv_size + info.it_tlv_tot;
     // position on first TLV
-    it->tlv_off = off_ + sizeof(info);
+    it->tlv_off = offset + sizeof(info);
     return 0;
 }
 
@@ -106,39 +109,37 @@ file_tlv_iter_begin(
  *          1 if no more TLVs with matching type are available
  *          -1 on errors
  */
-int
-file_tlv_iter_next(struct file_tlv_iter* it, uint32_t* off, uint16_t* len, uint16_t* type)
+zephyr_api_ret_t
+file_tlv_iter_next(file_tlv_iter_t* const it, uint32_t* const off, uint16_t* const len, uint16_t* const type)
 {
-    struct image_tlv tlv;
-    int              rc;
-
-    if (it == NULL || it->hdr == NULL || it->p_file == NULL)
+    if ((NULL == it) || (NULL == it->hdr) || (NULL == it->p_file))
     {
         return -1;
     }
 
     while (it->tlv_off < it->tlv_end)
     {
-        if (it->hdr->ih_protect_tlv_size > 0 && it->tlv_off == it->prot_end)
+        if ((it->hdr->ih_protect_tlv_size > 0) && (it->tlv_off == it->prot_end))
         {
             it->tlv_off += sizeof(struct image_tlv_info);
         }
 
-        rc = LOAD_IMAGE_DATA(it->hdr, it->p_file, it->tlv_off, (void*)&tlv, sizeof tlv);
-        if (rc)
+        struct image_tlv tlv = { 0 };
+        zephyr_api_ret_t rc  = LOAD_IMAGE_DATA(it->hdr, it->p_file, it->tlv_off, (void*)&tlv, sizeof tlv);
+        if (0 != rc)
         {
             return -1;
         }
 
         /* No more TLVs in the protected area */
-        if (it->prot && it->tlv_off >= it->prot_end)
+        if (it->prot && (it->tlv_off >= it->prot_end))
         {
             return 1;
         }
 
-        if (it->type == IMAGE_TLV_ANY || tlv.it_type == it->type)
+        if ((IMAGE_TLV_ANY == it->type) || (tlv.it_type == it->type))
         {
-            if (type != NULL)
+            if (NULL != type)
             {
                 *type = tlv.it_type;
             }
@@ -164,10 +165,10 @@ file_tlv_iter_next(struct file_tlv_iter* it, uint32_t* off, uint16_t* len, uint1
  *         1 if this TLV iterator entry is in the protected region
  *         -1 if the iterator is invalid.
  */
-int
-file_tlv_iter_is_prot(struct file_tlv_iter* it, uint32_t off)
+zephyr_api_ret_t
+file_tlv_iter_is_prot(const file_tlv_iter_t* const it, const uint32_t off)
 {
-    if (it == NULL || it->hdr == NULL || it->p_file == NULL)
+    if ((NULL == it) || (NULL == it->hdr) || (NULL == it->p_file))
     {
         return -1;
     }

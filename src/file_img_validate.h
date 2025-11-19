@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/types.h>
 #include <zephyr/fs/fs_interface.h>
 #include <bootutil/image.h>
 #include <bootutil/fault_injection_hardening.h>
@@ -21,14 +22,13 @@ extern "C" {
  */
 fih_ret
 file_img_validate(
-    struct image_header*    hdr,
-    struct fs_file_t* const p_file,
-    const uint32_t          fa_size,
-    uint8_t*                tmp_buf,
-    uint32_t                tmp_buf_sz,
-    uint8_t*                seed,
-    int                     seed_len,
-    uint8_t*                out_hash);
+    const struct image_header* const hdr,
+    struct fs_file_t* const          p_file,
+    const uint32_t                   fa_size,
+    uint8_t* const                   tmp_buf,
+    const uint32_t                   tmp_buf_sz,
+    const uint8_t* const             seed,
+    const ssize_t                    seed_len);
 
 #ifdef __cplusplus
 }

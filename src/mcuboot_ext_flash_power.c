@@ -31,13 +31,13 @@ mcuboot_ext_flash_power_on(void)
         return;
     }
 #if defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_1)
-    int ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_INPUT | GPIO_PULL_DOWN);
+    int32_t ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_INPUT | GPIO_PULL_DOWN);
     if (ret < 0)
     {
         LOG_ERR("gpio_pin_configure_dt failed for GPIO_ENABLE_SENSORS, ret=%d", ret);
     }
 #elif defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_2)
-    int ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW);
+    int32_t ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_OUTPUT | GPIO_OUTPUT_INIT_LOW);
     if (ret < 0)
     {
         LOG_ERR("gpio_pin_configure_dt failed for GPIO_ENABLE_SENSORS, ret=%d", ret);
@@ -57,13 +57,13 @@ mcuboot_ext_flash_power_off(void)
         return;
     }
 #if defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_1)
-    int ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_OUTPUT | GPIO_OUTPUT_INIT_HIGH);
+    int32_t ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_OUTPUT | GPIO_OUTPUT_INIT_HIGH);
     if (ret < 0)
     {
         LOG_ERR("gpio_pin_configure_dt failed for GPIO_ENABLE_SENSORS, ret=%d", ret);
     }
 #elif defined(CONFIG_BOARD_RUUVI_RUUVIAIR_REV_2)
-    int ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_DISCONNECTED);
+    int32_t ret = gpio_pin_configure_dt(&gpio_enable_sensors, GPIO_DISCONNECTED);
     if (ret < 0)
     {
         LOG_ERR("gpio_pin_configure_dt failed for GPIO_ENABLE_SENSORS, ret=%d", ret);

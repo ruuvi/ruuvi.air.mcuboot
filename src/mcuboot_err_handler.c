@@ -10,7 +10,7 @@
 LOG_MODULE_DECLARE(mcuboot, CONFIG_MCUBOOT_LOG_LEVEL);
 
 void
-k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf* esf)
+k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf* esf) // NOSONAR: Zephyr API, signature must match
 {
     ARG_UNUSED(esf);
 
@@ -20,7 +20,7 @@ k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf* esf)
 }
 
 FUNC_NORETURN void
-arch_system_halt(unsigned int reason)
+arch_system_halt(unsigned int reason) // NOSONAR: Zephyr API, signature must match
 {
     LOG_ERR("MCUboot: arch_system_halt: reason %d", reason);
     (void)arch_irq_lock();
@@ -29,7 +29,7 @@ arch_system_halt(unsigned int reason)
 }
 
 void
-assert_post_action(const char* file, unsigned int line)
+assert_post_action(const char* file, unsigned int line) // NOSONAR: Zephyr API, signature must match
 {
     LOG_ERR("### MCUboot: Assertion failed at %s:%u", file, line);
     mcuboot_led_err_blink_red_led(NUM_RED_LED_BLINKS_ON_ASSERT);

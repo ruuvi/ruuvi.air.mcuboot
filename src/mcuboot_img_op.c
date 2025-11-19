@@ -5,6 +5,7 @@
 #include <zephyr/fs/fs.h>
 #include <zephyr/logging/log.h>
 #include <cmsis_gcc.h>
+#include "zephyr_api.h"
 
 LOG_MODULE_DECLARE(B0, LOG_LEVEL_INF);
 
@@ -18,7 +19,7 @@ typedef bool (*cb_img_process_t)(
 
 static bool
 img_process(
-    const int               fa_id_dst,
+    const fa_id_t           fa_id_dst,
     struct fs_file_t* const p_file_src,
     const bool              flag_erase_dst,
     cb_img_process_t        cb_img_process)
@@ -27,16 +28,27 @@ img_process(
 
     const struct flash_area* p_fa_dst = NULL;
 
-    int rc = flash_area_open(fa_id_dst, &p_fa_dst);
+    int32_t rc = flash_area_open(fa_id_dst, &p_fa_dst);
     if (0 != rc)
     {
         LOG_ERR("Failed to open flash area %d, rc=%d", fa_id_dst, rc);
         return false;
     }
 
-    rc                        = fs_seek(p_file_src, 0, FS_SEEK_END);
+    rc = fs_seek(p_file_src, 0, FS_SEEK_END);
+    if (0 != rc)
+    {
+        LOG_ERR("Failed to seek in file, rc=%d", rc);
+        return false;
+    }
     const off_t src_file_size = fs_tell(p_file_src);
-    rc                        = fs_seek(p_file_src, 0, FS_SEEK_SET);
+
+    rc = fs_seek(p_file_src, 0, FS_SEEK_SET);
+    if (0 != rc)
+    {
+        LOG_ERR("Failed to seek in file, rc=%d", rc);
+        return false;
+    }
 
     LOG_INF(
         "Copy %" PRIu32 " bytes from file to flash partition %d at offset 0x%08" PRIxPTR,
@@ -100,7 +112,7 @@ img_process(
         const size_t padding = (0 != (len % 4)) ? (4 - (len % 4)) : 0;
         if (0 != padding)
         {
-            memset(&tmp_buf1[len], 0xFF, padding);
+            memset(&tmp_buf1[len], UINT8_MAX, padding);
         }
 
         if (!cb_img_process(p_fa_dst, offset, tmp_buf1, len + padding))
@@ -124,8 +136,8 @@ cb_img_write(
     const uint8_t*           p_src_img_data_buf,
     const size_t             buf_len)
 {
-    int rc = flash_area_write(p_fa_dst, offset, p_src_img_data_buf, buf_len);
-    if (rc != 0)
+    zephyr_api_ret_t rc = flash_area_write(p_fa_dst, offset, p_src_img_data_buf, buf_len);
+    if (0 != rc)
     {
         LOG_ERR("Failed to write at address 0x%08x, rc=%d", (unsigned)(p_fa_dst->fa_off + offset), rc);
         return false;
@@ -142,8 +154,8 @@ cb_img_cmp(
 {
     static uint8_t tmp_buf2[TMP_BUF_SIZE];
 
-    int rc = flash_area_read(p_fa_dst, offset, tmp_buf2, buf_len);
-    if (rc != 0)
+    zephyr_api_ret_t rc = flash_area_read(p_fa_dst, offset, tmp_buf2, buf_len);
+    if (0 != rc)
     {
         LOG_ERR("Failed to read flash at address 0x%08x, rc=%d", (unsigned)(p_fa_dst->fa_off + offset), rc);
         return false;
@@ -160,13 +172,13 @@ cb_img_cmp(
 }
 
 bool
-mcuboot_img_op_copy(const int fa_id_dst, struct fs_file_t* const p_file_src)
+mcuboot_img_op_copy(const fa_id_t fa_id_dst, struct fs_file_t* const p_file_src)
 {
     return img_process(fa_id_dst, p_file_src, true, &cb_img_write);
 }
 
 bool
-mcuboot_img_op_cmp(const int fa_id_dst, struct fs_file_t* const p_file_src)
+mcuboot_img_op_cmp(const fa_id_t fa_id_dst, struct fs_file_t* const p_file_src)
 {
     return img_process(fa_id_dst, p_file_src, false, &cb_img_cmp);
 }
