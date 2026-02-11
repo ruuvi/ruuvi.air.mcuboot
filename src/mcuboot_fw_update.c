@@ -255,13 +255,6 @@ validate_file(
         *p_img_hdr = img_hdr;
     }
 
-    FIH_DECLARE(validity_res, FIH_FAILURE);
-    FIH_CALL(file_img_validate, validity_res, &img_hdr, &file, dst_fa_size, tmp_buf, sizeof(tmp_buf), NULL, 0);
-    if (FIH_NOT_EQ(validity_res, FIH_SUCCESS))
-    {
-        LOG_ERR("Validation failed for file: %s", p_file_name);
-        return false;
-    }
     zephyr_api_ret_t rc = fs_seek(&file, img_hdr.ih_hdr_size + sizeof(uint32_t), FS_SEEK_SET);
     if (0 != rc)
     {
@@ -310,6 +303,14 @@ validate_file(
     if (NULL != p_hw_rev)
     {
         *p_hw_rev = hw_rev;
+    }
+
+    FIH_DECLARE(validity_res, FIH_FAILURE);
+    FIH_CALL(file_img_validate, validity_res, &img_hdr, &file, dst_fa_size, tmp_buf, sizeof(tmp_buf), NULL, 0);
+    if (FIH_NOT_EQ(validity_res, FIH_SUCCESS))
+    {
+        LOG_ERR("Validation failed for file: %s", p_file_name);
+        return false;
     }
 
     fs_close(&file);
