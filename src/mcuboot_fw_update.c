@@ -248,6 +248,7 @@ validate_file(
     if (img_size >= dst_fa_size)
     {
         LOG_ERR("Image size %" PRIu32 " is too big for flash area, max size=%" PRIu32, img_size, dst_fa_size);
+        fs_close(&file);
         return false;
     }
     if (NULL != p_img_hdr)
@@ -259,6 +260,7 @@ validate_file(
     if (0 != rc)
     {
         LOG_ERR("Failed to seek to the beginning of the image data in file %s, rc=%d", p_file_name, rc);
+        fs_close(&file);
         return false;
     }
     uint32_t reset_addr = 0;
@@ -266,6 +268,7 @@ validate_file(
     if (rc < 0)
     {
         LOG_ERR("Failed to read reset address from file %s, rc=%d", p_file_name, rc);
+        fs_close(&file);
         return false;
     }
     if (rc != sizeof(reset_addr))
@@ -275,6 +278,7 @@ validate_file(
             p_file_name,
             (unsigned)rc,
             sizeof(reset_addr));
+        fs_close(&file);
         return false;
     }
     if (!((reset_addr >= dst_fa_addr) && (reset_addr < (dst_fa_addr + dst_fa_size))))
@@ -284,6 +288,7 @@ validate_file(
             reset_addr,
             dst_fa_addr,
             dst_fa_addr + dst_fa_size);
+        fs_close(&file);
         return false;
     }
 
@@ -310,6 +315,7 @@ validate_file(
     if (FIH_NOT_EQ(validity_res, FIH_SUCCESS))
     {
         LOG_ERR("Validation failed for file: %s", p_file_name);
+        fs_close(&file);
         return false;
     }
 
